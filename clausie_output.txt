@@ -1,0 +1,81 @@
+# CLAUSE DETECTION
+#   Dict. copular        : 25 (be, prove, sound, ...)
+#   Dict. ext-copular    : 31 (love, be, prove, ...)
+#   Dict. not ext.-cop.  : 2 (die, walk)
+#   Dict. complex trans. : 15 (set, lay, bring, ...)
+#   Dict. ignored adverb : 6 (as, thus, even, ...)
+#   Dict. included adverb: 5 (seldom, barely, scarcely, ...)
+#   Dict. conj adverbs   : 0
+#   Conservative SVA     : false
+#   Conservative SVOA    : true
+#   Process all verb CCs : true
+#   Process non-verb CCs : false
+#   Process appositions  : true
+#   Process possessives  : true
+#   Process partmods     : true
+# 
+# REPRESENTATION
+#   n-ary propositions  : false
+#   Min. opt. args      : 0
+#   Max. opt. args      : 1
+#   Lemmatize           : true
+#   Appositions verb    : "is"
+#   Possessive verb     : "has"
+# Line 1: This is a sentence
+# Semantic graph: [sentence/NN nsubj:This/DT cop:is/VBZ det:a/DT]
+#   Detected 1 clause(s).
+#   - SVC (C: sentence@4, V: is@2, S: This@1)
+This is a sentence
+1	"this"	"be"	"a sentence"	-30.03619956970215
+# Line 2: She was not going to parse another sentence
+# Semantic graph: [going/VBG
+#                  nsubj:She/PRP
+#                  aux:was/VBD
+#                  neg:not/RB
+#                  xcomp:[parse/VB aux:to/TO dobj:[sentence/NN det:another/DT]]]
+#   Detected 1 clause(s).
+#   - SVC (V: going@4, S: She@1, XCOMP: parse@6)
+She was not going to parse another sentence
+2	"she"	"be not go"	"to parse another sentence"	-59.46012878417969
+# Line 3: The man goes from point A to point B
+# Semantic graph: [goes/VBZ
+#                  nsubj:[man/NN det:The/DT]
+#                  prep:[from/IN pobj:[A/NN nn:point/NN]]
+#                  xcomp:[point/VB aux:to/TO dobj:B/NNP]]
+#   Detected 1 clause(s).
+#   - SVC (V: goes@3, S: man@2, A?: from@4, XCOMP: point@8)
+The man goes from point A to point B
+3	"the man"	"go"	"from point a to point B"	-76.43988800048828
+3	"the man"	"go"	"to point B"	-76.43988800048828
+# Line 4: He breathes without his lungs.
+# Semantic graph: [breathes/VBZ nsubj:He/PRP prep:[without/IN pobj:[lungs/NNS poss:his/PRP$]]]
+#   Detected 2 clause(s).
+#   - SV (V: breathes@2, S: He@1, A?: without@3)
+#   - SVO (S: his@4, V: "has", O: lungs@5)
+He breathes without his lungs.
+4	"he"	"breathe"	"without he lung"	-43.81191635131836
+4	"he"	"breathe"	-43.81191635131836
+4	"he"	"has"	"lung"	-43.81191635131836
+# Line 5: They wanted to try a few strategies, such as longer closes, so they burst down the door and let out a roar of excitement.
+# Semantic graph: [wanted/VBD
+#                  nsubj:They/PRP
+#                  xcomp:[try/VB
+#                         aux:to/TO
+#                         dobj:[strategies/NNS det:a/DT amod:few/JJ]
+#                         dep:[as/IN mwe:such/JJ pobj:[longer/JJR dep:closes/VBZ]]
+#                         advcl:[burst/VBP
+#                                mark:so/IN
+#                                nsubj:they/PRP
+#                                prt:down/RP
+#                                dobj:[door/NN det:the/DT]]
+#                         cc:and/CC
+#                         conj:[let/VB
+#                               prt:out/RP
+#                               dobj:[roar/NN det:a/DT prep:[of/IN pobj:excitement/NN]]]]]
+#   Detected 2 clause(s).
+#   - SVO (V: wanted@2, S: They@1, XCOMP: try@4)
+#   - SVO (V: burst@16, S: they@15, O: door@19)
+They wanted to try a few strategies, such as longer closes, so they burst down the door and let out a roar of excitement.
+5	"they"	"want"	"to try a few strategy so they burst down the door"	-173.06814575195312
+5	"they"	"want"	"to let out a roar of excitement"	-173.06814575195312
+5	"they"	"burst down"	"the door"	-173.06814575195312

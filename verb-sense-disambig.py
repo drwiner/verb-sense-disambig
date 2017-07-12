@@ -116,9 +116,9 @@ def setup_semafor():
 
 	semafor_parser = Popen(
 		['java', '-jar',
-		 base_path + 'target/Semafor-3.0-alpha=04.jar',
+		 base_path + 'target/Semafor-3.0-alpha-04.jar',
 		 base_path + 'edu.cmu.cs.lti.ark.fn.SemaforSocketServer ',
-		 'model-dir:' + base_path + 'models/semafor_malt_mdoel_20121129/',
+		 'model-dir:' + base_path + 'models/semafor_malt_model_20121129/',
 		 'port:8080'])
 
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
