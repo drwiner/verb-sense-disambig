@@ -15,7 +15,7 @@ CLAUSIE_FRAME_DICT = {
 
 
 Clause = namedtuple('Clause', ['type', 'dict'])
-Sentence = namedtuple('ClauseLine', ['raw_sentence', 'clauses', 'triples'])
+Sentence = namedtuple('Sentence', ['raw_sentence', 'clauses', 'triples'])
 
 def to_typed_clause(clause_line):
 	first_part = clause_line.split('(')[0]
@@ -32,7 +32,7 @@ def to_typed_clause(clause_line):
 	clause_dict = eval(clause_parenth)
 	return Clause(clause_type, clause_dict)
 
-def to_clause_line(sub_lines):
+def to_sentence_obj(sub_lines):
 	raw_sentence = sub_lines[0][10:].strip()
 	clauses = []
 	triples = []
@@ -67,18 +67,22 @@ def setup_clausie():
 	return clausie_port
 
 
-def clausie(input_parser=None, text=None, restart=None):
+def clausie(input_parser=None, text_list=None, restart=None):
 	if input_parser is None or restart is not None:
 		parser = setup_clausie()
 	else:
 		parser = input_parser
 
-	for sent in text:
+	for sent in text_list:
 		parser.stdin.write(sent)
 
 	parser.communicate()
-	# returns Sentences
-	return read_clausie_output('clausie_output.txt')
+
+	nested_lines = read_clausie_output('clausie_output.txt')
+	sents = [to_sentence_obj(sublines) for sublines in nested_lines]
+
+	# returns list over Sentence objects
+	return sents
 
 def read_clausie_output(text_file_name):
 	sents = []
@@ -95,14 +99,17 @@ def read_clausie_output(text_file_name):
 					sent = []
 			if started:
 				sent.append(line)
+		if sent:
+			sents.append(sent)
 
 	return sents
 
 if __name__ == '__main__':
 
 	# test: give sample sentences, read them and get output
-	sample_text = [b'The body floats to the surface of the water.\n', b'He shoots first, asks questions later.\n']
-	sentences = clausie(text=sample_text)
+	sent_list = [b'The body floats to the surface of the water.\n',
+	             b'He shoots first, asks questions later.\n']
+	sentences = clausie(text_list=sent_list)
 
 	for sent in sentences:
 		print(sent)
