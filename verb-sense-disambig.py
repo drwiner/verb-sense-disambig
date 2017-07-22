@@ -1,132 +1,167 @@
-from pycorenlp import StanfordCoreNLP
 from functools import partial
 from subprocess import Popen, PIPE
 import socket
 
-from nltk.corpus import wordnet as wn
+
 from nltk.corpus import framenet as fn
+from nltk.corpus import wordnet as wn
+from nltk.stem import WordNetLemmatizer
+wordnet_lemmatizer = WordNetLemmatizer()
 
-clause_frame_dict = {
-	'SVC': [4,6,7],
-	'SV' : [1,3],
-	'SVA': [1,2,12,13,22,27],
-	'SVOO': [14,15],
-	'SVOC': [5],
-	'SVO': [26,34,1,2,8,9,10,11,33],
-	'SVOA': [1,2,8,9,10,11,15,16,17,18,19,20,21,30,31,33,24,28,29,32,35]}
-
-def NLP(parser, text):
-	return parser.annotate(text, properties={'outputFormat': 'json'})
-
-def setup_parser():
-	nlp_port = StanfordCoreNLP('http://localhost:9000')
-	return partial(NLP, parser=nlp_port)
+from clausie_api import clausie, clause_to_synsets, prepare_raw_text
+from semafor_api import semafor, semafor_util
+from dep_conll_api import setup_parser as corenlp
 
 
-def clausie(input_parser=None, text=None, restart=None):
-	if input_parser is None or restart is not None:
-		parser = setup_clausie()
-	else:
-		parser = input_parser
+class senseProfile:
+	"""
+	sense profile for a particular verb
+	"""
+	def __init__(self, verb_lemma, synsets, arg_list, verb_frame, arg_frames, corefs=None):
+		self.verb = verb_lemma
+		self.synsets = synsets
+		self.arg_list = arg_list
+		self.verb_frame = verb_frame
+		self.arg_frames = arg_frames
+		self.corefs = corefs
 
-	for sent in text:
-		parser.stdin.write(sent)
-	parser.communicate()
 
-	# TODO: improve API here.
-	clause_types = []
-	verb_lemmas = []
-	with open('clausie_output.txt', 'r') as fp:
-		last_line = None
-		last_id = 0
-		for line in fp:
-			if line[0] == '#':
-				last_line = line
-			# print(line)
-			elif line.split()[0] == last_id:
+def clausIE(raw_text):
+	sents = clausie(prepare_raw_text(raw_text))
+
+	triple_list = [sent.triples for sent in sents]
+
+	verb_synset_dict = [{clause.dict['V'].split('_')[0]:
+		                     (clause_to_synsets(clause), match_triples_to_clause(clause.dict, triple_list))
+	                                for clause in sent.clauses}  for sent in sents]
+
+	# for each verb in sent, clause_to_synsets
+	return verb_synset_dict
+
+
+def narrow_synsets(synsets, lex_units):
+	"""
+
+	:param synsets:
+	:param lex_units:
+	:return: only those synsets such that there exists a lex unit with matching name
+			(typically, there are more lex units than synsets, so more comprehensive)
+	"""
+	narrowed_list = []
+	for lex_unit in lex_units:
+		# ignore the pos
+		lu = lex_unit[:-2]
+		for synset in synsets:
+			synset_name = synset._name.split(".")[0]
+			if lu == synset_name:
+				# then this synset is OK
+				narrowed_list.append(synset)
+	return narrowed_list
+
+
+# arg_list output of method: "match_triples_to_clause"
+def arg_list_to_dict(list_with_arg_tups):
+	return {tup[0] + str(i): list(tup)[1:] for i, tup in enumerate(list_with_arg_tups)}
+
+
+def match_triples_to_clause(clause_dict, triples):
+	# first, find the triple containing the verb
+	verb = clause_dict['V'].split("_")[0]
+	verb_lemma = wordnet_lemmatizer.lemmatize(verb)
+	trips = [trip for trip in triples for arg in trip if verb_lemma in arg]
+
+	cdict = {key: wordnet_lemmatizer.lemmatize(val.split('_')[0].lower()) for key, val in clause_dict.items()}
+	# arg_map = {}
+	# for trip in trips:
+	# 	for arg in trip:
+	# 		if arg[-1] == '\n':
+	# 			continue
+	# 		for key, val in cdict.items():
+	# 			if val in arg[1:-1].split():
+	# 				arg_map[key] = (val, arg)
+	# 				break
+
+	arg_list = []
+	for key, val in cdict.items():
+		for trip in trips:
+			for arg in trip:
+				if arg[-1] == '\n':
+					continue
+				if val in arg[1:-1].split():
+					arg_list.append((key, val, arg[1:-1]))
+					# arg_map[key] = (val, arg[1:-1])
+
+	return arg_list
+
+
+def match_frames_to_args(frame_items_per_sent, arg_lists):
+	# triples in triple_list are cndts for
+	for target_frame_text, (target_frame_name, descendants) in frame_items_per_sent.items():
+		if target_frame_text
+
+	{arg: fi for arg in alist for fn, fi in frame_dict.items() if fn in arg or arg in fn}
+
+
+def sense_profile(raw_text):
+	verb_to_synsets = clausIE(text)
+
+	# get conllu and corefs
+	nlp = corenlp()
+	var_dict = nlp(text=text, property=['conllu', 'json'])
+	conllu = var_dict['conllu']
+	corefs = var_dict['json']['corefs'].values()
+
+	sentnums_with_coref = [[item.sentNum for item in corefs] for corefs in corefs.values()]
+
+	# get frames for verbs and noun chunks
+	sem_output = semafor(sock=None, text=conllu, reconnect=1)
+	frame_list_dict = semafor_util(sem_output)
+
+	sent_eval = zip(verb_to_synsets, frame_list_dict)
+	action_senses = []
+	# synset_dict is list of verb_dicts for each sentence
+	# frame_dict is {frame text: targetFrame(target_frame=name, descendants=[framedText(text, name),...,]}
+	for sent_num, (synset_dict, frame_dict) in enumerate(sent_eval):
+		#synset_dict.values():  (clause_to_synsets(clause), match_triples_to_clause(clause.dict, triple_list))
+		for verb, (synset_list, arg_list) in synset_dict.items():
+			if verb not in frame_dict.keys():
 				continue
-			else:
-				last_id = line.split()[0]
-				# This is an output, last line has clause type
-				sep_line = last_line.split()
-				clause_type = sep_line[2]
-				# print(line.split())
 
-				verb_instance = None
-				for i, item in enumerate(sep_line[3:]):
-					if 'V:' in item:
-						verb_instance = sep_line[3 + i + 1]
-						break
-				verb_instance = verb_instance.split('@')[0]
-				verb_lemmas.append(verb_instance)
-				clause_types.append(clause_type)
+			# verb part
+			frame = fn.frame_by_name(frame_dict[verb].target_frame)
+			synsets = narrow_synsets(synset_list, list(frame.lexUnit.keys()))
 
-	cndt_fids = []
-	sent_zip = zip(clause_types, verb_lemmas)
-	for ctype, vlemma in sent_zip:
-		print('{} : {}'.format(ctype, vlemma))
-		frameids = clause_frame_dict[ctype]
-		for i, synset in enumerate(wn.synsets(vlemma)):
-			fids = synset.frame_ids()
-			interfids = list(set(frameids) & set(fids))
-			if len(interfids) > 0:
-				cndt_fids.extend(interfids)
-				print('{}: {}'.format(i, synset.definition()))
-		print('\n')
+			# arg_frames = []
+
+			arg_frames = [frame for _, arg, arg_phrase in arg_list for frame_text, frame in frame_dict.items()
+			              if arg in frame_text or frame_text in arg_phrase]
+			verb_frame = None
+			for frame_text, frame in frame_dict.items():
+				if frame_text in verb or verb in frame_text:
+					verb_frame = frame
+					break
+
+			# add corefs
+			coref_items_ = [corefs[k] for k in range(corefs) if sent_num in sentnums_with_coref[k]]
+
+			sp = senseProfile(verb, synsets, arg_list, verb_frame, arg_frames, coref_items_)
+
+			action_senses.append(sp)
 
 
-def setup_clausie():
-	clausie_port = Popen(
-		['java', '-jar',
-		 'D:/Documents/Python/ClausIEpy/clausie.jar', '-c',
-		 'D:/Documents/Python/ClausIEpy/resources/clausie.conf',
-		 '-v', '-s' '-p', '-o', 'clausie_output.txt'],
-		stdin=PIPE)
-	return partial(clausie, clausie_port)
+	return action_senses
 
 
-def semafor(sock, text, reconnect=None):
-	# text is single sentence here
+	# for each sentence,
+	print('play from here')
 
-	if reconnect is not None:
-		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		sock.shutdown(socket.SHUT_WR)
-		sock.connect(('127.0.0.1', 8080))
-
-	result = [u'\n'.join(text)]
-
-	request = u'\n\n'.join(result)
-	sock.sendall(request.encode('utf8'))
-
-
-	response = []
-	while True:
-		chunk = sock.recv(8192)
-		if not chunk:
-			break
-		response.append(chunk)
-	return response
-	# with open('jic.txt', 'w') as jic:
-	# 	for item in response:
-	# 		jic.write(item.decode('utf8'))
-	# 		jic.write('\n')
-
-def setup_semafor():
-	base_path = 'D:/Documents/Python/NLP/semafor-master/semafor-master/'
-
-	semafor_parser = Popen(
-		['java', '-jar',
-		 base_path + 'target/Semafor-3.0-alpha-04.jar',
-		 base_path + 'edu.cmu.cs.lti.ark.fn.SemaforSocketServer ',
-		 'model-dir:' + base_path + 'models/semafor_malt_model_20121129/',
-		 'port:8080'])
-
-	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	sock.connect(('127.0.0.1', 8080))
-
-	return partial(semafor, sock=sock)
 
 if __name__ == '__main__':
-	dep_parser = setup_parser()
-	synset_parser = setup_clausie()
-	frame_parser = setup_semafor()
+
+	text = "He lowers the torch to the floor of the landing. " \
+	       "The landing is carpeted with human skeletons, one on top of another, all squashed flat as cardboard. " \
+	       "Satipo gasps. " \
+	       "Indy looks up at the ceiling of the landing, then steps onto skeletons, which make a cracking noise under his feet. "
+
+	action_senses = sense_profile(text)
+	print(action_senses)

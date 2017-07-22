@@ -1,7 +1,8 @@
-from functools import partial
-from nltk.corpus import wordnet as wn
 from subprocess import Popen, PIPE
 from collections import namedtuple
+from clockdeco import clock
+import nltk.data
+from nltk.corpus import wordnet as wn
 
 CLAUSIE_FRAME_DICT = {
 	'SVC': [4,6,7],
@@ -12,14 +13,13 @@ CLAUSIE_FRAME_DICT = {
 	'SVO': [26,34,1,2,8,9,10,11,33],
 	'SVOA': [1,2,8,9,10,11,15,16,17,18,19,20,21,30,31,33,24,28,29,32,35]}
 
-
-
 Clause = namedtuple('Clause', ['type', 'dict'])
 Sentence = namedtuple('Sentence', ['raw_sentence', 'clauses', 'triples'])
 
+
 def to_typed_clause(clause_line):
 	first_part = clause_line.split('(')[0]
-	clause_type = first_part.split('-')[0].strip()
+	clause_type = first_part.split('-')[-1].strip()
 	clause_parenth = clause_line[len(first_part):].strip()
 	clause_parenth = clause_parenth.replace('(', ' { ')
 	clause_parenth = clause_parenth.replace(',', ' , ')
@@ -31,6 +31,7 @@ def to_typed_clause(clause_line):
 	clause_parenth = ' '.join(c_list)
 	clause_dict = eval(clause_parenth)
 	return Clause(clause_type, clause_dict)
+
 
 def to_sentence_obj(sub_lines):
 	raw_sentence = sub_lines[0][10:].strip()
@@ -58,6 +59,7 @@ def to_sentence_obj(sub_lines):
 
 
 def setup_clausie():
+	# These parameter choices are informed by API assumptions
 	clausie_port = Popen(
 		['java', '-jar',
 		 'D:/Documents/Python/ClausIEpy/clausie.jar', '-c',
@@ -67,15 +69,20 @@ def setup_clausie():
 	return clausie_port
 
 
-def clausie(input_parser=None, text_list=None, restart=None):
-	if input_parser is None or restart is not None:
+@clock
+def clausie(text_list=None, input_parser=None):
+	if input_parser is None:
 		parser = setup_clausie()
 	else:
 		parser = input_parser
 
+	if type(text_list) is not list:
+		text_list = prepare_raw_text(text_list)
+
 	for sent in text_list:
 		parser.stdin.write(sent)
 
+	# this finalizes the procedure
 	parser.communicate()
 
 	nested_lines = read_clausie_output('clausie_output.txt')
@@ -83,6 +90,7 @@ def clausie(input_parser=None, text_list=None, restart=None):
 
 	# returns list over Sentence objects
 	return sents
+
 
 def read_clausie_output(text_file_name):
 	sents = []
@@ -104,12 +112,74 @@ def read_clausie_output(text_file_name):
 
 	return sents
 
+
+def prepare_raw_text(raw_text):
+	_sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
+	sents = _sent_detector.tokenize(raw_text)
+	return [bytes(s + '\n', encoding='utf-8') for s in sents]
+
+
+def list_intersect(list_1, list_2):
+	return set(list_1).intersection(set(list_2))
+
+
+def clause_to_synsets(clause_obj):
+	try:
+		verb = clause_obj.dict['V'].split('_')[0]
+	except:
+		print('ok')
+	synsets = wn.synsets(verb, wn.VERB)
+	senses = CLAUSIE_FRAME_DICT[clause_obj.type]
+	detected_synsets = [synset for synset in synsets if len(list_intersect(synset.frame_ids(), senses)) > 0]
+	return detected_synsets
+
+
 if __name__ == '__main__':
+
+	# 1
 
 	# test: give sample sentences, read them and get output
 	sent_list = [b'The body floats to the surface of the water.\n',
 	             b'He shoots first, asks questions later.\n']
 	sentences = clausie(text_list=sent_list)
+
+	for sent in sentences:
+		print(sent)
+		for clause in sent.clauses:
+			for synset in clause_to_synsets(clause):
+				print(synset)
+				print(synset.definition())
+	print('\n')
+
+
+	# 2
+
+	# test: give sample sentences, read them and get output
+	raw_text = 'The body floats to the surface of the water. He shoots first, asks questions later.'
+	# sent_list = prepare_raw_text(raw_text)
+	sentences = clausie(text_list=prepare_raw_text(raw_text))
+
+	for sent in sentences:
+		print(sent)
+
+
+	# 3
+
+	# test: give sample sentences, read them and get output
+	sent_list = [b'The body floats to the surface of the water.\n',
+	             b'He shoots first, asks questions later.\n']
+	sentences = clausie(text_list=sent_list)
+
+	for sent in sentences:
+		print(sent)
+
+
+	# 4
+
+	# test: give sample sentences, read them and get output
+	raw_text = 'The body floats to the surface of the water. He shoots first, asks questions later.'
+	# sent_list = prepare_raw_text(raw_text)
+	sentences = clausie(text_list=prepare_raw_text(raw_text))
 
 	for sent in sentences:
 		print(sent)
