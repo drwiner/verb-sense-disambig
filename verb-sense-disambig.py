@@ -93,13 +93,13 @@ def match_triples_to_clause(clause_dict, triples):
 
 	return arg_list
 
-
-def match_frames_to_args(frame_items_per_sent, arg_lists):
-	# triples in triple_list are cndts for
-	for target_frame_text, (target_frame_name, descendants) in frame_items_per_sent.items():
-		if target_frame_text
-
-	{arg: fi for arg in alist for fn, fi in frame_dict.items() if fn in arg or arg in fn}
+#
+# def match_frames_to_args(frame_items_per_sent, arg_lists):
+# 	# triples in triple_list are cndts for
+# 	for target_frame_text, (target_frame_name, descendants) in frame_items_per_sent.items():
+# 		if target_frame_text
+#
+# 	{arg: fi for arg in alist for fn, fi in frame_dict.items() if fn in arg or arg in fn}
 
 
 def sense_profile(raw_text):
@@ -153,7 +153,7 @@ def sense_profile(raw_text):
 
 
 	# for each sentence,
-	print('play from here')
+	# print('play from here')
 
 
 if __name__ == '__main__':
